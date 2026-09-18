@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="vi" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <title>Trade Journal Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; -webkit-tap-highlight-color: transparent; }
+        .sidebar-item { transition: all 0.2s ease; border-left: 4px solid transparent; }
+        .sidebar-item:hover { background-color: rgba(13, 148, 136, 0.1); color: #0f766e; }
+        .dark .sidebar-item:hover { background-color: rgba(45, 212, 191, 0.1); color: #5eead4; }
+        .sidebar-item.active { background-color: rgba(13, 148, 136, 0.1); border-left: 4px solid #0d9488; color: #0f766e; font-weight: 700; }
+        .dark .sidebar-item.active { background-color: rgba(45, 212, 191, 0.1); border-left: 4px solid #2dd4bf; color: #5eead4; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .tag-btn { transition: transform 0.1s; }
+        .tag-btn:active { transform: scale(0.95); }
+    </style>
+</head>
+<body class="flex h-screen w-full overflow-hidden text-gray-800 bg-gray-50 dark:bg-[#0f172a] dark:text-gray-200">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="w-64 bg-white dark:bg-[#1e293b] border-r border-gray-200 dark:border-gray-800 flex-col flex absolute md:relative z-40 h-full transform -translate-x-full md:translate-x-0 transition-transform duration-300">
+        <div class="p-6 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pt-8 md:pt-6">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-teal-500 to-teal-700 text-white p-2.5 rounded-xl font-bold text-sm shadow-lg">TJ</div>
+                <div>
+                    <h2 class="font-bold text-gray-800 dark:text-gray-100 tracking-tight">Trade Journal</h2>
+                    <p class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Pro Workspace</p>
+                </div>
+            </div>
+            <button onclick="toggleSidebar()" class="md:hidden text-gray-500"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <nav class="flex-1 py-4 flex flex-col gap-1 overflow-y-auto">
+            <a href="#" onclick="switchView('overview')" id="tab-overview" class="sidebar-item active flex items-center gap-3 px-6 py-3 text-gray-600 dark:text-gray-300"><i class="fas fa-chart-line w-5 text-center"></i> Bảng Phân Tích</a>
+            <a href="#" onclick="switchView('journal')" id="tab-journal" class="sidebar-item flex items-center gap-3 px-6 py-3 text-gray-600 dark:text-gray-300"><i class="fas fa-book-open w-5 text-center"></i> Nhật Ký Chi Tiết</a>
+            <a href="#" onclick="switchView('settings')" id="tab-settings" class="sidebar-item flex items-center gap-3 px-6 py-3 text-gray-600 dark:text-gray-300"><i class="fas fa-sliders-h w-5 text-center"></i> Cài Đặt Hệ Thống</a>
+        </nav>
+    </aside>
+
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden"></div>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 h-full overflow-y-auto relative w-full pt-4 md:pt-0">
+        <div class="p-4 md:p-8 max-w-7xl mx-auto min-h-full">
+            
+            <!-- Header -->
+            <div class="flex flex-wrap justify-between items-center mb-6 border-b border-gray-200 dark:border-gray-800 pb-4 gap-4 mt-2 md:mt-0">
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleSidebar()" class="md:hidden text-gray-600 dark:text-gray-300 p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700"><i class="fas fa-bars text-xl"></i></button>
+                    <h1 class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Workspace</h1>
+                </div>
+                <div class="flex gap-2 md:gap-3 items-center">
+                    <button onclick="toggleDarkMode()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:shadow-md transition"><i id="theme-icon" class="fas fa-moon"></i></button>
+                    <button onclick="fetchTrades()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700 text-teal-600 dark:text-teal-400 hover:shadow-md transition"><i class="fas fa-sync-alt"></i></button>
+                    <button onclick="openManualTradeForm()" class="px-4 py-2 md:px-5 md:py-2.5 bg-teal-600 text-white rounded-lg text-sm font-semibold hover:bg-teal-700 shadow-lg flex items-center gap-2"><i class="fas fa-plus"></i> <span class="hidden md:inline">Ghi Lệnh Mới</span></button>
+                </div>
+            </div>
+
+            <!-- VIEW 1: BẢNG PHÂN TÍCH -->
+            <div id="view-overview" class="view-section block w-full">
+                
+                <!-- Sức khỏe tài khoản (Đã giữ nguyên) -->
+                <div class="bg-gradient-to-r from-[#1e293b] to-[#0f172a] dark:from-[#0f172a] dark:to-black rounded-2xl p-6 mb-6 shadow-xl border border-gray-800 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="absolute -right-10 -top-10 opacity-10"><i class="fas fa-heartbeat text-9xl text-teal-500"></i></div>
+                    <div class="relative z-10 text-center md:text-left">
+                        <h3 class="text-white/80 text-sm font-bold uppercase tracking-wider mb-1"><i class="fas fa-shield-alt text-teal-400 mr-2"></i>Sức khỏe tài khoản (Profit Factor)</h3>
+                        <p class="text-xs text-gray-400 max-w-md">Đo lường tỉ lệ giữa Tổng Lợi Nhuận và Tổng Thua Lỗ. > 1.5 là hệ thống tốt.</p>
+                    </div>
+                    <div class="relative z-10 flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/10">
+                        <div class="text-center">
+                            <p class="text-white/60 text-xs uppercase mb-1">Điểm số</p>
+                            <h2 id="health-score" class="text-3xl font-black text-white">0.00</h2>
+                        </div>
+                        <div class="h-10 w-px bg-white/20"></div>
+                        <div class="text-center">
+                            <p class="text-white/60 text-xs uppercase mb-1">Đánh giá</p>
+                            <span id="health-status" class="px-3 py-1 bg-gray-500 text-white rounded font-bold text-sm">Chưa có dữ liệu</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CHỈ SỐ NÂNG CAO MỚI BỔ SUNG (R:R, Streak, Drawdown, Duration) -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white dark:bg-[#1e293b] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col justify-center items-center text-center">
+                        <p class="text-[10px] md:text-xs font-semibold text-gray-500 uppercase mb-1">Tỷ Lệ Risk/Reward (R:R)</p>
+                        <h3 id="stat-rr" class="text-xl md:text-2xl font-bold text-teal-500 mb-1">0.00</h3>
+                        <p class="text-[10px] text-gray-400">Trung bình Thắng / Thua</p>
+                    </div>
+                    <div class="bg-white dark:bg-[#1e293b] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col justify-center items-center text-center">
+                        <p class="text-[10px] md:text-xs font-semibold text-gray-500 uppercase mb-1">Chuỗi Hiện Tại</p>
+                        <h3 id="stat-streak" class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-1">0</h3>
+                        <p class="text-[10px] text-gray-400">Chuỗi kỷ lục: <span id="stat-max-streak" class="font-bold">0</span></p>
+                    </div>
+                    <div class="bg-white dark:bg-[#1e293b] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col justify-center items-center text-center">
+                        <p class="text-[10px] md:text-xs font-semibold text-gray-500 uppercase mb-1">Max Drawdown</p>
+                        <h3 id="stat-drawdown" class="text-xl md:text-2xl font-bold text-rose-500 mb-1">$0.00</h3>
+                        <p class="text-[10px] text-gray-400">Sụt giảm vốn tối đa</p>
+                    </div>
+                    <div class="bg-white dark:bg-[#1e293b] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col justify-center items-center text-center">
+                        <p class="text-[10px] md:text-xs font-semibold text-gray-500 uppercase mb-1">Phong Cách Trade</p>
+                        <h3 id="stat-duration" class="text-lg md:text-xl font-bold text-blue-500 mb-1">--</h3>
+                        <p class="text-[10px] text-gray-400">T/g giữ lệnh trung bình</p>
+                    </div>
+                </div>
+
+                <!-- Các chỉ số cơ bản (Thu gọn lại xíu) -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white dark:bg-[#1e293b] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+                        <p class="text-[10px] md:text-xs font-semibold text-gray-500 uppercase mb-1">Tổng Lợi Nhuận</p>
+                        <h3 id="stat-pnl" class="text-xl md:text-2xl font-bold mb-1">$0.00</h3>
+                        <p class="text-[10px] text-gray-500"><span id="stat-trades-count" class="font-bold">0</span> lệnh đóng</p>
+                    </div>
+                    <div class="bg-white dark:bg-[#1e293b] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+                        <p class="text-[10px] md:text-xs font-semibold text-gray-500 uppercase mb-1">Tỉ Lệ Thắng</p>
+                        <h3 id="stat-winrate" class="text-xl md:text-2xl font-bold mb-1 text-gray-900 dark:text-white">0%</h3>
+                        <p class="text-[10px] text-gray-500"><span id="stat-wins-losses" class="font-bold">0W - 0L</span></p>
+                    </div>
+                    <div class="bg-white dark:bg-[#1e293b] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+                        <p class="text-[10px] md:text-xs font-semibold text-gray-500 uppercase mb-1">TB Lệnh Thắng</p>
+                        <h3 id="stat-avg-win" class="text-xl md:text-2xl font-bold text-teal-500 mb-1">+$0.00</h3>
+                    </div>
+                    <div class="bg-white dark:bg-[#1e293b] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+                        <p class="text-[10px] md:text-xs font-semibold text-gray-500 uppercase mb-1">TB Lệnh Thua</p>
+                        <h3 id="stat-avg-loss" class="text-xl md:text-2xl font-bold text-rose-500 mb-1">-$0.00</h3>
+                    </div>
+                </div>
+
+                <!-- Hệ thống Biểu đồ (Thêm biểu đồ Thứ trong tuần) -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white dark:bg-[#1e293b] p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 w-full overflow-hidden">
+                        <h3 class="font-bold mb-4"><i class="fas fa-calendar-day text-teal-500 mr-2"></i> Hiệu Suất Theo Thứ</h3>
+                        <div class="h-64 w-full"><canvas id="dowChart"></canvas></div>
+                    </div>
+                    <div class="bg-white dark:bg-[#1e293b] p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col w-full overflow-hidden">
+                        <h3 class="font-bold mb-2"><i class="fas fa-chart-pie text-teal-500 mr-2"></i> Phân Bổ Cặp Tiền</h3>
+                        <div class="h-64 flex-1 relative mt-4 w-full"><canvas id="symbolChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Biểu đồ lợi nhuận theo ngày (Đẩy xuống dưới cho rộng) -->
+                <div class="bg-white dark:bg-[#1e293b] p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 w-full overflow-hidden mb-8">
+                    <h3 class="font-bold mb-4"><i class="fas fa-chart-area text-teal-500 mr-2"></i> Đường Cong Vốn (Lợi Nhuận Theo Ngày)</h3>
+                    <div class="h-72 w-full"><canvas id="pnlChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- VIEW 2: NHẬT KÝ CHI TIẾT -->
+            <div id="view-journal" class="view-section hidden w-full">
+                <div id="trades-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pb-10 w-full"></div>
+            </div>
+
+            <!-- VIEW 3: CÀI ĐẶT -->
+            <div id="view-settings" class="view-section hidden w-full">
+                <div class="max-w-2xl bg-white dark:bg-[#1e293b] rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-800">
+                    <h3 class="font-bold text-xl mb-6 dark:text-white">Thông tin kết nối (API)</h3>
+                    <div class="space-y-5">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Supabase Project URL</label>
+                            <input type="text" readonly value="https://tybyfftkfdgwvioapttq.supabase.co" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 text-gray-500 text-sm outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Anon / Publishable Key</label>
+                            <input type="password" readonly value="sb_publishable_t3DHBpmAULU2JHSPnkN5-Q_EZS56-_-" class="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 text-gray-500 text-sm outline-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- MODAL: GHI LỆNH MỚI (ĐÃ KHÔI PHỤC ĐẦY ĐỦ + THÊM THỜI GIAN ĐÓNG) -->
+    <div id="manual-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex justify-center items-center z-[60] p-4">
+        <div class="bg-white dark:bg-[#1e293b] w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]" id="manual-modal-box">
+            <div class="flex justify-between items-center p-4 md:p-5 border-b border-gray-100 dark:border-gray-700 shrink-0">
+                <h3 class="text-lg font-bold">Thêm Lệnh Thủ Công</h3>
+                <button onclick="closeModal('manual-modal')" class="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            
+            <div class="p-4 md:p-5 space-y-4 overflow-y-auto flex-1">
+                <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <p class="text-[10px] font-bold text-gray-500 uppercase mb-2">Thêm nhanh Tag</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button onclick="addTagToInput('m-reason', '#FOMC')" class="tag-btn text-[10px] px-2 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 rounded border border-red-200 dark:border-red-800/50">FOMC</button>
+                        <button onclick="addTagToInput('m-reason', '#CPI')" class="tag-btn text-[10px] px-2 py-1 bg-orange-100 text-orange-700 dark:bg-orange-900/30 rounded border border-orange-200 dark:border-orange-800/50">CPI / NFP</button>
+                        <button onclick="addTagToInput('m-reason', '#FOMO')" class="tag-btn text-[10px] px-2 py-1 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 rounded border border-yellow-200 dark:border-yellow-800/50">FOMO</button>
+                        <button onclick="addTagToInput('m-reason', '#KỷLuật')" class="tag-btn text-[10px] px-2 py-1 bg-teal-100 text-teal-700 dark:bg-teal-900/30 rounded border border-teal-200 dark:border-teal-800/50">Đúng Kỷ Luật</button>
+                        <button onclick="addTagToInput('m-reason', '#TrảThù')" class="tag-btn text-[10px] px-2 py-1 bg-purple-100 text-purple-700 dark:bg-purple-900/30 rounded border border-purple-200 dark:border-purple-800/50">Lệnh Trả Thù</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Cặp Giao Dịch</label>
+                        <input type="text" id="m-symbol" placeholder="VD: XAUUSD" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 outline-none focus:border-teal-500 uppercase font-bold text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Loại Lệnh</label>
+                        <select id="m-type" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 outline-none focus:border-teal-500 font-bold text-sm">
+                            <option value="Buy">Buy</option><option value="Sell">Sell</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- PHẦN KHÔI PHỤC: LOT, GIÁ VÀO, GIÁ ĐÓNG -->
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Lot</label>
+                        <input type="number" step="0.01" id="m-lot" placeholder="0.1" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 outline-none focus:border-teal-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Giá Vào</label>
+                        <input type="number" step="0.001" id="m-open-price" placeholder="1900.00" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 outline-none focus:border-teal-500 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Giá Đóng</label>
+                        <input type="number" step="0.001" id="m-close-price" placeholder="1910.00" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 outline-none focus:border-teal-500 text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Thời Gian Vào</label>
+                        <input type="datetime-local" id="m-time" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 outline-none focus:border-teal-500 text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Thời Gian Đóng</label>
+                        <input type="datetime-local" id="m-close-time" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 outline-none focus:border-teal-500 text-xs">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Lợi Nhuận ($)</label>
+                    <input type="number" step="0.01" id="m-pnl" placeholder="-50.00" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 outline-none focus:border-teal-500 font-bold text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Lý Do / Cảm xúc</label>
+                    <textarea id="m-reason" rows="2" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 text-sm outline-none focus:border-teal-500" placeholder="Chiến lược giao dịch, cảm xúc..."></textarea>
+                </div>
+            </div>
+            
+            <div class="p-4 md:p-5 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3 shrink-0 bg-gray-50 dark:bg-[#1e293b] rounded-b-2xl">
+                <button onclick="closeModal('manual-modal')" class="px-5 py-2.5 rounded-lg font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition">Hủy</button>
+                <button onclick="saveManualTrade()" id="btn-save-manual" class="px-5 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-semibold shadow-md transition">Lưu Lệnh</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: GHI CHÚ CHỈNH SỬA CHO LỆNH ĐÃ CÓ -->
+    <div id="journal-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex justify-center items-center z-[60] p-4">
+        <div class="bg-white dark:bg-[#1e293b] w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]" id="journal-modal-box">
+            <div class="flex justify-between items-center p-4 md:p-5 border-b border-gray-100 dark:border-gray-700 shrink-0">
+                <h3 class="text-lg font-bold">Chỉnh Sửa Ghi Chú</h3>
+                <button onclick="closeModal('journal-modal')" class="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="p-4 md:p-5 space-y-4 overflow-y-auto flex-1">
+                <input type="hidden" id="edit-ticket">
+                <div class="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <p class="text-[10px] font-bold text-gray-500 uppercase mb-2">Thêm nhanh Tag</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button onclick="addTagToInput('edit-reason', '#FOMC')" class="tag-btn text-[10px] px-2 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 rounded border border-red-200 dark:border-red-800/50">FOMC</button>
+                        <button onclick="addTagToInput('edit-reason', '#CPI')" class="tag-btn text-[10px] px-2 py-1 bg-orange-100 text-orange-700 dark:bg-orange-900/30 rounded border border-orange-200 dark:border-orange-800/50">CPI / NFP</button>
+                        <button onclick="addTagToInput('edit-reason', '#FOMO')" class="tag-btn text-[10px] px-2 py-1 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 rounded border border-yellow-200 dark:border-yellow-800/50">FOMO</button>
+                        <button onclick="addTagToInput('edit-reason', '#KỷLuật')" class="tag-btn text-[10px] px-2 py-1 bg-teal-100 text-teal-700 dark:bg-teal-900/30 rounded border border-teal-200 dark:border-teal-800/50">Đúng Kỷ Luật</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Nội dung ghi chú</label>
+                    <textarea id="edit-reason" rows="4" class="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 text-sm outline-none focus:border-teal-500"></textarea>
+                </div>
+            </div>
+            <div class="p-4 md:p-5 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3 shrink-0 bg-gray-50 dark:bg-[#1e293b] rounded-b-2xl">
+                <button onclick="closeModal('journal-modal')" class="px-5 py-2.5 rounded-lg font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition">Hủy</button>
+                <button onclick="saveEditJournal()" id="btn-save-edit" class="px-5 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-semibold shadow-md transition">Lưu Thay Đổi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Phóng To Ảnh -->
+    <div id="image-modal" class="fixed inset-0 bg-black/95 hidden flex justify-center items-center z-[100] p-2" onclick="closeModal('image-modal')">
+        <img id="modal-img" class="max-w-full max-h-full object-contain" src="">
+        <button class="absolute top-4 right-6 text-white text-4xl md:text-5xl hover:text-gray-400">&times;</button>
+    </div>
+
+    <!-- LOGIC ỨNG DỤNG -->
+    <script>
+        const SUPABASE_URL = 'https://tybyfftkfdgwvioapttq.supabase.co';
+        const ANON_KEY = 'sb_publishable_t3DHBpmAULU2JHSPnkN5-Q_EZS56-_-';
+        let allTradesData = [], pnlChartInstance = null, symbolChartInstance = null, dowChartInstance = null;
+        
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full'); overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full'); overlay.classList.add('hidden');
+            }
+        }
+
+        function toggleDarkMode() {
+            const html = document.documentElement, icon = document.getElementById('theme-icon');
+            if (html.classList.contains('dark')) { html.classList.remove('dark'); localStorage.theme = 'light'; icon.className = 'fas fa-moon'; }
+            else { html.classList.add('dark'); localStorage.theme = 'dark'; icon.className = 'fas fa-sun text-yellow-400'; }
+            if(allTradesData.length) processDashboardData(allTradesData);
+        }
+        
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark'); document.getElementById('theme-icon').className = 'fas fa-sun text-yellow-400';
+        }
+
+        function switchView(id) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.getElementById('view-' + id).classList.remove('hidden');
+            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + id).classList.add('active');
+            if (window.innerWidth < 768) toggleSidebar();
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); setTimeout(() => document.getElementById(id+'-box')?.classList.replace('scale-95', 'scale-100'), 10); }
+        function closeModal(id) { document.getElementById(id+'-box')?.classList.replace('scale-100', 'scale-95'); setTimeout(() => document.getElementById(id).classList.add('hidden'), 150); }
+
+        function addTagToInput(inputId, tagText) {
+            const input = document.getElementById(inputId);
+            input.value = input.value ? input.value + ' ' + tagText : tagText;
+            input.focus();
+        }
+
+        async function fetchTrades() {
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/trades?select=*&order=created_at.desc`, { headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` } });
+                if(!response.ok) throw new Error("Lỗi mạng");
+                allTradesData = await response.json();
+                processDashboardData(allTradesData);
+                renderTradesList(allTradesData);
+            } catch (e) { console.error(e); }
+        }
+
+        function processDashboardData(trades) {
+            let tPnl=0, wins=0, losses=0, sWin=0, sLoss=0, cCount=0;
+            let totalProfitEarned = 0, totalLossIncurred = 0;
+            let dailyPnl={}, symData={};
+            let dowPnl = {1:0, 2:0, 3:0, 4:0, 5:0}; // Thứ 2 - Thứ 6
+            
+            // Xử lý logic Sắp xếp theo thời gian để tính Chuỗi & Max DD
+            const sortedTrades = [...trades].filter(t => t.status === 'CLOSED').sort((a,b) => new Date(a.open_time_mt5 || a.created_at) - new Date(b.open_time_mt5 || b.created_at));
+            
+            let currentStreak = 0;
+            let streakType = null;
+            let maxStreak = 0;
+            let cumulative = 0;
+            let peak = 0;
+            let maxDrawdown = 0;
+
+            let totalDurationMs = 0;
+            let durationCount = 0;
+
+            sortedTrades.forEach(t => {
+                if(t.pnl !== null) {
+                    cCount++; tPnl+=t.pnl;
+                    if(t.pnl>0) { wins++; sWin+=t.pnl; totalProfitEarned += t.pnl; } 
+                    else if (t.pnl < 0) { losses++; sLoss+=Math.abs(t.pnl); totalLossIncurred += Math.abs(t.pnl); }
+                    
+                    // Logic Chart PnL
+                    const dKey = t.open_time_mt5 ? t.open_time_mt5.split(' ')[0] : 'N/A';
+                    dailyPnl[dKey] = (dailyPnl[dKey]||0) + t.pnl;
+                    
+                    // Logic Symbol
+                    const s = t.symbol||'N/A';
+                    if(!symData[s]) symData[s] = { total: 0 };
+                    symData[s].total++;
+
+                    // Logic Day of Week
+                    if (t.open_time_mt5) {
+                        let day = new Date(t.open_time_mt5.replace(' ', 'T')).getDay();
+                        if (day >= 1 && day <= 5) dowPnl[day] += t.pnl;
+                    }
+
+                    // Logic Streak
+                    if (t.pnl > 0) {
+                        if (streakType === 'W') currentStreak++;
+                        else { streakType = 'W'; currentStreak = 1; }
+                    } else if (t.pnl < 0) {
+                        if (streakType === 'L') currentStreak++;
+                        else { streakType = 'L'; currentStreak = 1; }
+                    }
+                    if (currentStreak > maxStreak) maxStreak = currentStreak;
+
+                    // Logic Drawdown
+                    cumulative += t.pnl;
+                    if (cumulative > peak) peak = cumulative;
+                    let dd = peak - cumulative;
+                    if (dd > maxDrawdown) maxDrawdown = dd;
+
+                    // Logic Duration
+                    if (t.open_time_mt5 && t.close_time_mt5) {
+                        let openT = new Date(t.open_time_mt5.replace(' ', 'T'));
+                        let closeT = new Date(t.close_time_mt5.replace(' ', 'T'));
+                        totalDurationMs += (closeT - openT);
+                        durationCount++;
+                    }
+                }
+            });
+
+            // Update Basic Stats
+            document.getElementById('stat-pnl').innerText = `${tPnl>0?'+':''}$${tPnl.toFixed(2)}`;
+            document.getElementById('stat-pnl').className = `text-xl md:text-2xl font-bold mb-1 ${tPnl>=0?'text-teal-500':'text-rose-500'}`;
+            document.getElementById('stat-winrate').innerText = cCount?((wins/cCount)*100).toFixed(1)+'%':'0%';
+            document.getElementById('stat-wins-losses').innerText = `${wins}W - ${losses}L`;
+            document.getElementById('stat-trades-count').innerText = cCount;
+            
+            let avgW = wins ? (sWin/wins) : 0;
+            let avgL = losses ? (sLoss/losses) : 0;
+            document.getElementById('stat-avg-win').innerText = `+$${avgW.toFixed(2)}`;
+            document.getElementById('stat-avg-loss').innerText = `-$${avgL.toFixed(2)}`;
+            
+            // Cập nhật Advanced Stats
+            let rrRatio = (avgL === 0) ? avgW : (avgW / avgL);
+            document.getElementById('stat-rr').innerText = cCount > 0 ? rrRatio.toFixed(2) : "0.00";
+            
+            let streakColor = streakType === 'W' ? 'text-teal-500' : (streakType === 'L' ? 'text-rose-500' : 'text-gray-500');
+            document.getElementById('stat-streak').innerText = currentStreak > 0 ? `${currentStreak}${streakType}` : "0";
+            document.getElementById('stat-streak').className = `text-xl md:text-2xl font-bold mb-1 ${streakColor}`;
+            document.getElementById('stat-max-streak').innerText = maxStreak;
+            
+            document.getElementById('stat-drawdown').innerText = `-$${maxDrawdown.toFixed(2)}`;
+
+            // Xử lý Duration Text
+            let durationStr = "N/A";
+            if (durationCount > 0) {
+                let avgMs = totalDurationMs / durationCount;
+                let mins = Math.floor(avgMs / 60000);
+                if (mins < 60) durationStr = `${mins} phút`;
+                else durationStr = `${(mins/60).toFixed(1)} giờ`;
+            }
+            document.getElementById('stat-duration').innerText = durationStr;
+            
+            // Health Score Logic (Profit Factor)
+            let profitFactor = 0;
+            const healthStatusEl = document.getElementById('health-status');
+            const healthScoreEl = document.getElementById('health-score');
+            
+            if (totalLossIncurred === 0 && totalProfitEarned > 0) profitFactor = 99.99;
+            else if (totalLossIncurred > 0) profitFactor = totalProfitEarned / totalLossIncurred;
+
+            if (cCount < 3) {
+                healthScoreEl.innerText = "--";
+                healthStatusEl.innerText = "Cần thêm dữ liệu";
+                healthStatusEl.className = "px-3 py-1 bg-gray-500 text-white rounded font-bold text-sm";
+            } else {
+                healthScoreEl.innerText = profitFactor > 99 ? "MAX" : profitFactor.toFixed(2);
+                if (profitFactor >= 1.5) {
+                    healthStatusEl.innerText = "Tuyệt Vời (Có lợi thế)";
+                    healthStatusEl.className = "px-3 py-1 bg-teal-500 text-white rounded font-bold text-sm shadow-[0_0_10px_rgba(20,184,166,0.8)]";
+                } else if (profitFactor >= 1) {
+                    healthStatusEl.innerText = "Bình Thường (Hòa vốn)";
+                    healthStatusEl.className = "px-3 py-1 bg-yellow-500 text-white rounded font-bold text-sm";
+                } else {
+                    healthStatusEl.innerText = "Báo Động (Đang lỗ)";
+                    healthStatusEl.className = "px-3 py-1 bg-rose-500 text-white rounded font-bold text-sm shadow-[0_0_10px_rgba(244,63,94,0.8)]";
+                }
+            }
+
+            renderCharts(dailyPnl, symData, dowPnl);
+        }
+
+        function renderCharts(dData, sData, dowPnl) {
+            const isDark = document.documentElement.classList.contains('dark');
+            const cTxt = isDark?'#9ca3af':'#6b7280', cGrid = isDark?'#334155':'#f1f5f9';
+            
+            // Biểu đồ PnL Ngày
+            if(pnlChartInstance) pnlChartInstance.destroy();
+            pnlChartInstance = new Chart(document.getElementById('pnlChart'), {
+                type: 'bar', data: { labels: Object.keys(dData), datasets: [{ data: Object.values(dData), backgroundColor: Object.values(dData).map(v=>v>=0?'#14b8a6':'#f43f5e'), borderRadius: 4 }] },
+                options: { maintainAspectRatio: false, plugins: {legend:{display:false}}, scales: { y: {grid:{color:cGrid}, ticks:{color:cTxt}}, x:{grid:{display:false}, ticks:{color:cTxt}} } }
+            });
+
+            // Biểu đồ Tròn
+            if(symbolChartInstance) symbolChartInstance.destroy();
+            symbolChartInstance = new Chart(document.getElementById('symbolChart'), {
+                type: 'doughnut', data: { labels: Object.keys(sData), datasets: [{ data: Object.values(sData).map(d=>d.total), backgroundColor: ['#0d9488','#3b82f6','#f59e0b','#8b5cf6','#ec4899'], borderWidth: 0 }] },
+                options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: {color:cTxt, boxWidth:10} } }, cutout: '75%' }
+            });
+
+            // Biểu đồ Thứ Trong Tuần
+            if(dowChartInstance) dowChartInstance.destroy();
+            let dowLabels = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'];
+            let dowData = [dowPnl[1], dowPnl[2], dowPnl[3], dowPnl[4], dowPnl[5]];
+            dowChartInstance = new Chart(document.getElementById('dowChart'), {
+                type: 'bar', data: { labels: dowLabels, datasets: [{ data: dowData, backgroundColor: dowData.map(v=>v>=0?'#3b82f6':'#f43f5e'), borderRadius: 4 }] },
+                options: { maintainAspectRatio: false, plugins: {legend:{display:false}}, scales: { y: {grid:{color:cGrid}, ticks:{color:cTxt}}, x:{grid:{display:false}, ticks:{color:cTxt}} } }
+            });
+        }
+
+        function renderTradesList(trades) {
+            const container = document.getElementById('trades-container');
+            container.innerHTML = trades.length ? '' : '<p class="col-span-full text-center py-10 text-gray-500">Chưa có giao dịch.</p>';
+            const noImg = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmM2Y0ZjYiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZmlsbD0iI2QxZDVkYiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+
+            trades.forEach(trade => {
+                const isBuy = trade.trade_type === 'Buy';
+                const typeColor = isBuy ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400';
+                
+                let pnlHtml = '<span class="text-gray-400">--</span>';
+                if(trade.status === 'CLOSED' && trade.pnl !== null) {
+                    const isWin = trade.pnl > 0;
+                    pnlHtml = `<span class="font-bold text-lg ${isWin ? 'text-teal-500' : 'text-rose-500'}">${isWin ? '+' : ''}${trade.pnl.toFixed(2)}</span>`;
+                }
+
+                let reasonText = trade.reason || '';
+                reasonText = reasonText.replace(/#(FOMC|CPI|NFP|FOMO|KỷLuật|TrảThù)/gi, '<span class="text-teal-600 dark:text-teal-400 font-bold">#$1</span>');
+
+                const card = document.createElement('div');
+                card.className = 'bg-white dark:bg-[#1e293b] rounded-2xl border border-gray-100 dark:border-gray-800 p-5 shadow-sm flex flex-col';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="${typeColor} px-2 py-1 rounded text-[10px] font-bold uppercase">${trade.trade_type}</span>
+                            <h3 class="font-bold uppercase">${trade.symbol}</h3>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-1 rounded ${trade.status==='OPEN'?'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400':'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}">${trade.status==='OPEN'?'ĐANG MỞ':'ĐÃ ĐÓNG'}</span>
+                    </div>
+                    <div class="flex justify-between items-end mb-3 bg-gray-50 dark:bg-[#0f172a] p-3 rounded-lg">
+                        <div>
+                            <p class="text-[10px] text-gray-500 mb-1">GIÁ VÀO <span class="text-gray-400 font-normal lowercase">(Lot: ${trade.lot || '--'})</span></p>
+                            <p class="font-bold">${trade.open_price || '--'}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-500 mb-1">LỢI NHUẬN</p>
+                            ${pnlHtml}
+                        </div>
+                    </div>
+                    ${reasonText ? `<div class="mt-2 text-[13px] text-gray-600 dark:text-gray-400 p-2 border-l-2 border-teal-500 bg-teal-50/50 dark:bg-teal-900/10 mb-3">${reasonText}</div>` : ''}
+                    
+                    <div class="grid grid-cols-2 gap-2 mt-auto">
+                        <div class="relative group cursor-pointer overflow-hidden rounded-lg aspect-video bg-gray-100 dark:bg-gray-700" onclick="openZoomImage('${trade.image_h1_url}')">
+                            <img src="${trade.image_h1_url || noImg}" class="w-full h-full object-cover opacity-90 group-hover:opacity-100">
+                            <div class="absolute bottom-1 left-1 bg-black/70 backdrop-blur-sm text-white text-[10px] px-1.5 py-0.5 rounded font-medium">H1</div>
+                        </div>
+                        <div class="relative group cursor-pointer overflow-hidden rounded-lg aspect-video bg-gray-100 dark:bg-gray-700" onclick="openZoomImage('${trade.image_m15_url}')">
+                            <img src="${trade.image_m15_url || noImg}" class="w-full h-full object-cover opacity-90 group-hover:opacity-100">
+                            <div class="absolute bottom-1 left-1 bg-black/70 backdrop-blur-sm text-white text-[10px] px-1.5 py-0.5 rounded font-medium">M15</div>
+                        </div>
+                    </div>
+
+                    <button onclick="openJournalEditForm('${trade.ticket}', '${(trade.reason || '').replace(/'/g, "\\'")}')" class="w-full mt-4 bg-gray-50 hover:bg-teal-50 dark:bg-gray-700/30 dark:hover:bg-teal-900/30 text-gray-700 hover:text-teal-700 dark:text-gray-300 dark:hover:text-teal-400 font-semibold py-2 rounded-lg text-sm transition-colors border border-gray-100 dark:border-gray-700">
+                        <i class="fas fa-edit mr-1"></i> Ghi Chú / Chỉnh Sửa
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function openZoomImage(url) {
+            if(!url || url === 'null') return;
+            document.getElementById('modal-img').src = url;
+            document.getElementById('image-modal').classList.remove('hidden');
+        }
+
+        function openManualTradeForm() {
+            ['m-symbol','m-lot','m-open-price','m-close-price','m-pnl','m-reason'].forEach(id => document.getElementById(id).value = '');
+            const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('m-time').value = now.toISOString().slice(0,16);
+            document.getElementById('m-close-time').value = now.toISOString().slice(0,16);
+            openModal('manual-modal');
+        }
+
+        function openJournalEditForm(ticket, reason) {
+            document.getElementById('edit-ticket').value = ticket;
+            document.getElementById('edit-reason').value = reason !== 'undefined' ? reason : '';
+            openModal('journal-modal');
+        }
+
+        async function saveManualTrade() {
+            const payload = {
+                ticket: 'M_' + Date.now(), symbol: document.getElementById('m-symbol').value.toUpperCase(),
+                trade_type: document.getElementById('m-type').value, status: 'CLOSED', psychology: 'Thủ Công',
+                lot: parseFloat(document.getElementById('m-lot').value) || null,
+                open_price: parseFloat(document.getElementById('m-open-price').value) || null,
+                close_price: parseFloat(document.getElementById('m-close-price').value) || null,
+                pnl: parseFloat(document.getElementById('m-pnl').value) || 0,
+                reason: document.getElementById('m-reason').value,
+                open_time_mt5: document.getElementById('m-time').value.replace('T', ' '),
+                close_time_mt5: document.getElementById('m-close-time').value.replace('T', ' ')
+            };
+            if(!payload.symbol) return alert('Điền mã giao dịch!');
+            document.getElementById('btn-save-manual').innerText = 'Đang lưu...';
+            try {
+                await fetch(`${SUPABASE_URL}/rest/v1/trades`, { method: 'POST', headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                closeModal('manual-modal'); fetchTrades();
+            } catch(e) {} finally { document.getElementById('btn-save-manual').innerText = 'Lưu Lệnh'; }
+        }
+
+        async function saveEditJournal() {
+            const ticket = document.getElementById('edit-ticket').value;
+            const reason = document.getElementById('edit-reason').value;
+            const btn = document.getElementById('btn-save-edit');
+            btn.innerHTML = 'Đang lưu...';
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/trades?ticket=eq.${ticket}`, {
+                    method: 'PATCH',
+                    headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: reason })
+                });
+                if(response.ok) { closeModal('journal-modal'); fetchTrades(); }
+            } catch(e) {} finally { btn.innerHTML = 'Lưu Thay Đổi'; }
+        }
+
+        fetchTrades();
+    </script>
+</body>
+</html>
