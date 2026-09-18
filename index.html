@@ -274,7 +274,7 @@
                 <div class="bg-[#0f172a] p-2 rounded border border-gray-700">
                     <p class="text-[9px] font-bold text-gray-500 uppercase mb-1.5">Bộ Tag Thực Chiến</p>
                     <div class="flex flex-wrap gap-1">
-                        <button type="button" onclick="addTagToInput('m-reason', '#FOMC')" class="text-[9px] px-1.5 py-0.5 bg-orange-900/30 text-orange-400 rounded border border-orange-800/50">FOMC</button>
+                        <button type="button" onclick="addTagToInput('m-reason', '#FOMC')" class="text-[9px] px-1.5 py-0.5 bg-red-900/30 text-red-400 rounded border border-red-800/50">FOMC</button>
                         <button type="button" onclick="addTagToInput('m-reason', '#CPI')" class="text-[9px] px-1.5 py-0.5 bg-orange-900/30 text-orange-400 rounded border border-orange-800/50">CPI / NFP</button>
                         <button type="button" onclick="addTagToInput('m-reason', '#FOMO')" class="text-[9px] px-1.5 py-0.5 bg-yellow-900/30 text-yellow-400 rounded border border-yellow-800/50">FOMO</button>
                         <button type="button" onclick="addTagToInput('m-reason', '#ĐúngKỷLuật')" class="text-[9px] px-1.5 py-0.5 bg-teal-900/30 text-teal-400 rounded border border-teal-800/50">Kỷ Luật</button>
@@ -328,7 +328,6 @@
         let allTradesData = [], filteredData = [], pnlChartInstance = null, symbolChartInstance = null, dowChartInstance = null;
 
         // ================= TIỆN ÍCH AN TOÀN =================
-        // Chống XSS: luôn escape dữ liệu người dùng trước khi chèn vào innerHTML
         function esc(str) {
             if (str === null || str === undefined) return '';
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -344,7 +343,6 @@
             setTimeout(() => el.remove(), 3000);
         }
 
-        // Bọc fetch: kiểm tra HTTP status + bắt lỗi mạng, không để lỗi âm thầm
         async function safeFetch(url, options, errMsg) {
             try {
                 const res = await fetch(url, options);
@@ -373,7 +371,6 @@
             if (res) {
                 const data = await res.json();
                 if (data.length > 0) {
-                    // Không lưu mật khẩu vào localStorage — chỉ giữ lại thông tin cần thiết
                     const { password, ...safeUser } = data[0];
                     currentUser = safeUser;
                     localStorage.setItem('tj_user', JSON.stringify(currentUser));
@@ -413,7 +410,7 @@
             }
         }
 
-        // ================= ĐỔI MẬT KHẨU =================
+        // ================= ĐỔI MẬT KHẨU CỦA CHÍNH MÌNH =================
         async function changePassword() {
             const newPass = document.getElementById('change-pass-inp').value;
             if (!newPass || newPass.length < 6) return showToast('Mật khẩu cần tối thiểu 6 ký tự', 'error');
@@ -424,7 +421,7 @@
             if (res) { showToast('Đổi mật khẩu thành công! Hãy đăng nhập lại.', 'success'); setTimeout(logout, 1200); }
         }
 
-        // ================= ADMIN: THU HỒI & XÓA =================
+        // ================= ADMIN: ĐỔI MK KHÁCH, XÓA, THU HỒI =================
         let adminUsersCache = [];
         async function loadAdminData() {
             const resU = await safeFetch(`${SUPABASE_URL}/rest/v1/app_users?role=eq.client&select=*`, { headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` } }, 'Không tải được danh sách user');
@@ -440,7 +437,10 @@
                         <span class="font-mono hidden" id="pass-real-${esc(u.id)}">${esc(u.password)}</span>
                         <button type="button" onclick="togglePassVisible('${esc(u.id)}')" class="ml-1 text-gray-500 hover:text-teal-400"><i class="fas fa-eye"></i></button>
                     </td>
-                    <td class="p-2 text-right"><button onclick="deleteUser('${esc(u.id)}', '${esc(u.username)}')" class="bg-amber-900/50 text-amber-400 px-2 py-1 rounded text-[10px]">Xóa</button></td>
+                    <td class="p-2 text-right">
+                        <button onclick="adminChangeUserPass('${esc(u.id)}', '${esc(u.username)}')" class="bg-blue-900/50 text-blue-400 px-2 py-1 rounded text-[10px] mr-1">Đổi MK</button>
+                        <button onclick="deleteUser('${esc(u.id)}', '${esc(u.username)}')" class="bg-amber-900/50 text-amber-400 px-2 py-1 rounded text-[10px]">Xóa</button>
+                    </td>
                 </tr>`;
                 userOpts += `<option value="${esc(u.id)}">${esc(u.username)}</option>`;
             });
@@ -473,7 +473,24 @@
             const id = document.getElementById('new-user-id').value.trim(); const pass = document.getElementById('new-user-pass').value;
             if (!id || !pass) return showToast('Nhập đủ ID và Pass', 'error');
             const res = await safeFetch(`${SUPABASE_URL}/rest/v1/app_users`, { method: 'POST', headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ username: id, password: pass }) }, 'Không tạo được user (ID có thể đã tồn tại)');
-            if (res) { document.getElementById('new-user-id').value = ''; document.getElementById('new-user-pass').value = ''; loadAdminData(); }
+            if (res) { document.getElementById('new-user-id').value = ''; document.getElementById('new-user-pass').value = ''; loadAdminData(); showToast('Đã tạo tài khoản', 'success'); }
+        }
+
+        async function adminChangeUserPass(id, name) {
+            const newPass = prompt(`Nhập mật khẩu mới cho khách hàng: ${name}`);
+            if(!newPass || newPass.trim() === '') return;
+            if(newPass.length < 6) return showToast('Mật khẩu cần tối thiểu 6 ký tự', 'error');
+
+            const res = await safeFetch(`${SUPABASE_URL}/rest/v1/app_users?id=eq.${id}`, {
+                method: 'PATCH',
+                headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: newPass })
+            }, 'Không cập nhật được mật khẩu');
+
+            if(res) {
+                showToast(`Đã đổi mật khẩu cho ${name} thành công!`, 'success');
+                loadAdminData();
+            }
         }
 
         async function deleteUser(id, name) {
@@ -488,7 +505,7 @@
             const r1 = await safeFetch(`${SUPABASE_URL}/rest/v1/permissions`, { method: 'POST', headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: uid, account_number: accNum, can_view: true, can_edit: edit }) }, 'Không gán được quyền');
             if (!r1) return;
             await safeFetch(`${SUPABASE_URL}/rest/v1/mt5_accounts?account_number=eq.${accNum}`, { method: 'PATCH', headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'visible' }) }, 'Không cập nhật được trạng thái MT5');
-            loadAdminData();
+            loadAdminData(); showToast('Đã cấp quyền', 'success');
         }
 
         async function revokePerm(accNum) {
@@ -496,13 +513,13 @@
             const r1 = await safeFetch(`${SUPABASE_URL}/rest/v1/permissions?account_number=eq.${accNum}`, { method: 'DELETE', headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` } }, 'Không thu hồi được quyền');
             if (!r1) return;
             await safeFetch(`${SUPABASE_URL}/rest/v1/mt5_accounts?account_number=eq.${accNum}`, { method: 'PATCH', headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'hidden' }) }, 'Không cập nhật được trạng thái MT5');
-            loadAdminData();
+            loadAdminData(); showToast('Đã thu hồi', 'success');
         }
 
         async function deleteMT5(accNum) {
             if (!confirm(`Xóa vĩnh viễn Số MT5 ${accNum} khỏi hệ thống?`)) return;
             const res = await safeFetch(`${SUPABASE_URL}/rest/v1/mt5_accounts?account_number=eq.${accNum}`, { method: 'DELETE', headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` } }, 'Không xóa được MT5');
-            if (res) loadAdminData();
+            if (res) loadAdminData(); showToast('Đã xóa', 'success');
         }
 
         // ================= TIỆN ÍCH UI =================
